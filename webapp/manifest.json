@@ -1,0 +1,124 @@
+{
+  "_version": "1.84.0",
+  "sap.app": {
+    "id": "stockoverview",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:basic",
+      "version": "1.24.0",
+      "toolsId": "c33ff0e4-8dfd-4f2f-8b36-3adb01033e2f"
+    }
+  },
+
+  "sap.ui": {
+    "technology": "UI5",
+
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+
+  "sap.ui5": {
+
+    "flexEnabled": true,
+
+    "rootView": {
+      "viewName": "stockoverview.view.App",
+      "type": "XML",
+      "id": "App",
+      "async": true
+    },
+
+    "dependencies": {
+
+      "minUI5Version": "1.148.0",
+
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.f": {},
+        "sap.ui.table": {},
+        "sap.ui.layout": {}
+      }
+    },
+
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+
+    "models": {
+
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "stockoverview.i18n.i18n"
+        }
+      },
+
+      "stock": {
+        "type": "sap.ui.model.json.JSONModel",
+        "uri": "model/data.json"
+      }
+
+    },
+
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+
+    "routing": {
+
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "transition": "slide",
+        "type": "View",
+        "viewType": "XML",
+        "path": "stockoverview.view",
+        "async": true,
+        "viewPath": "stockoverview.view"
+      },
+
+      "routes": [
+        {
+          "name": "RouteView1",
+          "pattern": "",
+          "target": [
+            "TargetView1"
+          ]
+        }
+      ],
+
+      "targets": {
+        "TargetView1": {
+          "id": "View1",
+          "name": "View1"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <SelectDialog
+        title="{stock>/vh/title}"
+        class="sapUiPopupWithPadding"
+        items="{stock>/vh/items}"
+        search=".onValueHelpSearch"
+        confirm=".onValueHelpConfirm"
+        cancel=".onValueHelpCancel">
+        <StandardListItem
+            title="{stock>key}"
+            description="{stock>text}" />
+    </SelectDialog>
+</core:FragmentDefinition>

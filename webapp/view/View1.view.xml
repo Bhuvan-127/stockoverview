@@ -1,0 +1,265 @@
+<mvc:View
+    controllerName="stockoverview.controller.View1"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
+    xmlns="sap.m"
+    xmlns:t="sap.ui.table"
+    xmlns:f="sap.f">
+
+    <Page
+        id="page"
+        title="Stock Overview">
+
+        <content>
+
+            <!-- Header Toolbar -->
+
+            <Toolbar class="sapUiSmallMarginTop sapUiSmallMarginBottom">
+                <Title
+                    text="Transaction MMBE Simulator"
+                    level="H3" />
+
+                <ToolbarSpacer />
+
+                <Button text="Variant" />
+
+                <Button
+                    text="Clear"
+                    press=".onClear" />
+            </Toolbar>
+
+            <!-- Filter Area -->
+
+            <Panel
+                class="sapUiResponsiveMargin"
+                expandable="false">
+
+                <content>
+
+                    <HBox
+                        justifyContent="SpaceBetween"
+                        alignItems="End"
+                        width="100%">
+
+                        <HBox>
+
+                            <VBox class="sapUiSmallMarginEnd">
+                                <Label
+                                    text="Material"
+                                    required="true" />
+
+                                <Input
+                                    width="220px"
+                                    value="{stock>/filters/material}"
+                                    valueState="{stock>/validation/materialState}"
+                                    valueStateText="Material is required"
+                                    showValueHelp="true"
+                                    valueHelpRequest=".onValueHelpMaterial" />
+                            </VBox>
+
+                            <VBox class="sapUiSmallMarginEnd">
+                                <Label text="Plant" />
+
+                                <Input
+                                    width="180px"
+                                    value="{stock>/filters/plant}"
+                                    showValueHelp="true"
+                                    valueHelpRequest=".onValueHelpPlant" />
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Storage Location" />
+
+                                <Input
+                                    width="180px"
+                                    value="{stock>/filters/storageLocation}"
+                                    showValueHelp="true"
+                                    valueHelpRequest=".onValueHelpSLoc" />
+                            </VBox>
+
+                        </HBox>
+
+                        <Button
+                            text="Execute"
+                            type="Emphasized"
+                            class="sapUiSmallMarginEnd"
+                            press=".onExecute" />
+
+                    </HBox>
+
+                </content>
+
+            </Panel>
+
+            <!-- Tree Table -->
+
+            <Panel
+                headerText="Stock Hierarchy"
+                class="sapUiResponsiveMargin">
+
+                <t:TreeTable
+                    rows="{
+                        path:'stock>/stockHierarchy',
+                        parameters:{
+                            arrayNames:['nodes']
+                        }
+                    }"
+                    visibleRowCount="8"
+                    selectionMode="Single"
+                    selectionBehavior="RowOnly"
+                    rowSelectionChange=".onNodeSelect">
+
+                    <t:columns>
+
+                        <t:Column width="350px">
+                            <Label text="Hierarchy Node" />
+
+                            <t:template>
+                                <HBox alignItems="Center">
+                                    <core:Icon src="{stock>icon}" class="sapUiTinyMarginEnd" color="{stock>iconColor}" />
+                                    <Text text="{stock>name}" />
+                                </HBox>
+                            </t:template>
+                        </t:Column>
+
+                        <t:Column hAlign="End" width="130px">
+                            <Label text="Unrestricted-Use" />
+
+                            <t:template>
+                                <Text text="{stock>unrestricted}" />
+                            </t:template>
+                        </t:Column>
+
+                        <t:Column hAlign="End" width="130px">
+                            <Label text="Qual. Inspection" />
+
+                            <t:template>
+                                <Text text="{stock>inspection}" />
+                            </t:template>
+                        </t:Column>
+
+                        <t:Column hAlign="End" width="130px">
+                            <Label text="Blocked" />
+
+                            <t:template>
+                                <Text text="{stock>blocked}" />
+                            </t:template>
+                        </t:Column>
+
+                        <t:Column hAlign="End" width="130px">
+                            <Label text="Reserved" />
+
+                            <t:template>
+                                <Text text="{stock>reserved}" />
+                            </t:template>
+                        </t:Column>
+
+                        <t:Column hAlign="End" width="130px">
+                            <Label text="On-Order" />
+
+                            <t:template>
+                                <Text text="{stock>onOrder}" />
+                            </t:template>
+                        </t:Column>
+
+                    </t:columns>
+
+                </t:TreeTable>
+
+            </Panel>
+
+            <!-- Bottom Tabs -->
+
+            <IconTabBar class="sapUiResponsiveMargin">
+
+                <items>
+
+                    <IconTabFilter
+                        text="Special Stock &amp; Consignment">
+
+                        <HBox class="sapUiMediumMarginTop">
+
+                            <GenericTile
+                                class="sapUiSmallMarginEnd"
+                                header="Vendor Consignment">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/consignment}" valueColor="Neutral" />
+                                </TileContent>
+                            </GenericTile>
+
+                            <GenericTile
+                                class="sapUiSmallMarginEnd"
+                                header="Project Stock">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/project}" valueColor="Neutral" />
+                                </TileContent>
+                            </GenericTile>
+
+                            <GenericTile
+                                header="Sales Order Stock">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/salesOrder}" valueColor="Neutral" />
+                                </TileContent>
+                            </GenericTile>
+
+                        </HBox>
+
+                    </IconTabFilter>
+
+                    <IconTabFilter
+                        text="Transit / Transfer">
+
+                        <HBox class="sapUiMediumMarginTop">
+
+                            <GenericTile
+                                class="sapUiSmallMarginEnd"
+                                header="Transit Plant">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/transitPlant}" valueColor="Good" />
+                                </TileContent>
+                            </GenericTile>
+
+                            <GenericTile
+                                header="Transfer SLoc">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/transitSloc}" valueColor="Good" />
+                                </TileContent>
+                            </GenericTile>
+
+                        </HBox>
+
+                    </IconTabFilter>
+
+                    <IconTabFilter
+                        text="Expected Receipts / Deliveries">
+
+                        <HBox class="sapUiMediumMarginTop">
+
+                            <GenericTile
+                                class="sapUiSmallMarginEnd"
+                                header="Expected PO">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/expectedPO}" valueColor="Critical" />
+                                </TileContent>
+                            </GenericTile>
+
+                            <GenericTile
+                                header="Production Orders">
+                                <TileContent>
+                                    <NumericContent value="{stock>/selectedDetails/expectedProd}" valueColor="Critical" />
+                                </TileContent>
+                            </GenericTile>
+
+                        </HBox>
+
+                    </IconTabFilter>
+
+                </items>
+
+            </IconTabBar>
+
+        </content>
+
+    </Page>
+
+</mvc:View>

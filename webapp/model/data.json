@@ -1,0 +1,71 @@
+{
+  "filters": {
+    "material": "RM-100",
+    "plant": "",
+    "storageLocation": ""
+  },
+
+  "stockHierarchy": [
+    {
+      "node": "RM-100 (Steel Sheet)",
+      "type": "Material",
+      "unrestricted": "12,500",
+      "inspection": "400",
+      "blocked": "50",
+      "reserved": "2,000",
+      "onOrder": "5,000",
+      "nodes": [
+        {
+          "node": "1000 (Hamburg Factory)",
+          "type": "Plant",
+          "unrestricted": "8,500",
+          "inspection": "250",
+          "blocked": "50",
+          "reserved": "1,500",
+          "onOrder": "3,000",
+          "nodes": [
+            {
+              "node": "0001 (Raw Materials Storage)",
+              "type": "Storage",
+              "unrestricted": "5,000",
+              "inspection": "0",
+              "blocked": "0",
+              "reserved": "1,000",
+              "onOrder": "2,000",
+              "nodes": [
+                {
+                  "node": "B-00X1 (Batch Standard)",
+                  "type": "Batch",
+                  "unrestricted": "3,000",
+                  "inspection": "0",
+                  "blocked": "0",
+                  "reserved": "1,000",
+                  "onOrder": "0"
+                },
+                {
+                  "node": "B-00X2 (Batch Premium)",
+                  "type": "Batch",
+                  "unrestricted": "2,000",
+                  "inspection": "0",
+                  "blocked": "0",
+                  "reserved": "0",
+                  "onOrder": "0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "detailData": {
+    "consignment": "1000",
+    "project": "500",
+    "salesOrder": "200",
+    "transitPlant": "1500",
+    "transitSloc": "300",
+    "expectedPO": "5000",
+    "expectedProd": "2000"
+  }
+}
