@@ -14,12 +14,19 @@
       "id": "@sap/generator-fiori:basic",
       "version": "1.24.0",
       "toolsId": "c33ff0e4-8dfd-4f2f-8b36-3adb01033e2f"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata/sap/API_MATERIAL_STOCK_SRV/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "2.0"
+        }
+      }
     }
   },
-
   "sap.ui": {
     "technology": "UI5",
-
     "icons": {
       "icon": "",
       "favIcon": "",
@@ -28,29 +35,22 @@
       "tablet": "",
       "tablet@2": ""
     },
-
     "deviceTypes": {
       "desktop": true,
       "tablet": true,
       "phone": true
     }
   },
-
   "sap.ui5": {
-
     "flexEnabled": true,
-
     "rootView": {
       "viewName": "stockoverview.view.App",
       "type": "XML",
       "id": "App",
       "async": true
     },
-
     "dependencies": {
-
       "minUI5Version": "1.148.0",
-
       "libs": {
         "sap.m": {},
         "sap.ui.core": {},
@@ -59,28 +59,33 @@
         "sap.ui.layout": {}
       }
     },
-
     "contentDensities": {
       "compact": true,
       "cozy": true
     },
-
     "models": {
-
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
           "bundleName": "stockoverview.i18n.i18n"
         }
       },
-
       "stock": {
-        "type": "sap.ui.model.json.JSONModel",
-        "uri": "model/data.json"
+        "type": "sap.ui.model.json.JSONModel"
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "defaultBindingMode": "TwoWay",
+          "defaultCountMode": "Inline",
+          "refreshAfterChange": false,
+          "metadataUrlParams": {
+            "sap-value-list": "none"
+          }
+        }
       }
-
     },
-
     "resources": {
       "css": [
         {
@@ -88,9 +93,7 @@
         }
       ]
     },
-
     "routing": {
-
       "config": {
         "routerClass": "sap.m.routing.Router",
         "controlAggregation": "pages",
@@ -102,7 +105,6 @@
         "async": true,
         "viewPath": "stockoverview.view"
       },
-
       "routes": [
         {
           "name": "RouteView1",
@@ -112,7 +114,6 @@
           ]
         }
       ],
-
       "targets": {
         "TargetView1": {
           "id": "View1",
@@ -120,5 +121,9 @@
         }
       }
     }
+  },
+  "sap.cloud": {
+    "public": true,
+    "service": "stockoverview"
   }
 }

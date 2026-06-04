@@ -1,0 +1,11 @@
+{
+  "name": "stockoverview-approuter",
+  "version": "0.0.1",
+  "description": "Approuter for stockoverview",
+  "scripts": {
+    "start": "node node_modules/@sap/approuter/approuter.js"
+  },
+  "dependencies": {
+    "@sap/approuter": "^14.0.0"
+  }
+}

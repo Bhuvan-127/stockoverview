@@ -2,10 +2,12 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
+    "sap/m/MessageBox",
     "sap/ui/core/Fragment",
     "sap/ui/model/Filter",
-    "sap/ui/model/FilterOperator"
-], function (Controller, JSONModel, MessageToast, Fragment, Filter, FilterOperator) {
+    "sap/ui/model/FilterOperator",
+    "sap/ui/core/BusyIndicator"
+], function (Controller, JSONModel, MessageToast, MessageBox, Fragment, Filter, FilterOperator, BusyIndicator) {
     "use strict";
 
     return Controller.extend("stockoverview.controller.View1", {
@@ -13,7 +15,7 @@ sap.ui.define([
         onInit: function () {
             var oData = {
                 filters: {
-                    material: "RM-100",
+                    material: "",
                     plant: "",
                     storageLocation: ""
                 },
@@ -31,28 +33,22 @@ sap.ui.define([
 
             var oModel = new JSONModel(oData);
             this.getView().setModel(oModel, "stock");
-
-            this._loadMockData();
         },
 
         onExecute: function () {
-            var oModel = this.getView().getModel("stock");
-            var sMaterial = oModel.getProperty("/filters/material");
+            var oStockModel = this.getView().getModel("stock");
+            var sMaterial = oStockModel.getProperty("/filters/material");
 
             if (!sMaterial) {
-                oModel.setProperty("/validation/materialState", "Error");
+                oStockModel.setProperty("/validation/materialState", "Error");
                 MessageToast.show("Material is required");
                 return;
             }
 
-            oModel.setProperty("/validation/materialState", "None");
-            oModel.setProperty("/selectedDetails", null); // Reset selection
-            
-            // Simulate backend delay
-            MessageToast.show("Refreshing data...");
-            setTimeout(function() {
-                this._loadMockData();
-            }.bind(this), 300);
+            oStockModel.setProperty("/validation/materialState", "None");
+            oStockModel.setProperty("/selectedDetails", null);
+
+            this._fetchStockData();
         },
 
         onClear: function () {
@@ -79,6 +75,251 @@ sap.ui.define([
                 }
             }
             oModel.setProperty("/selectedDetails", null);
+        },
+
+        // --- OData Fetch Logic ---
+
+        _fetchStockData: function () {
+            var oView = this.getView();
+            var oStockModel = oView.getModel("stock");
+            var oODataModel = oView.getModel(); // default OData model
+
+            var sMaterial = oStockModel.getProperty("/filters/material");
+            var sPlant = oStockModel.getProperty("/filters/plant");
+            var sStorageLocation = oStockModel.getProperty("/filters/storageLocation");
+
+            // Build filters
+            var aFilters = [];
+            if (sMaterial) {
+                aFilters.push(new Filter("Material", FilterOperator.EQ, sMaterial));
+            }
+            if (sPlant) {
+                aFilters.push(new Filter("Plant", FilterOperator.EQ, sPlant));
+            }
+            if (sStorageLocation) {
+                aFilters.push(new Filter("StorageLocation", FilterOperator.EQ, sStorageLocation));
+            }
+
+            BusyIndicator.show(0);
+
+            oODataModel.read("/A_MatlStkInAcctMod", {
+                filters: aFilters,
+                success: function (oData) {
+                    BusyIndicator.hide();
+                    var aResults = oData.results || [];
+
+                    if (aResults.length === 0) {
+                        MessageToast.show("No stock data found for the given filters.");
+                        oStockModel.setProperty("/stockHierarchy", []);
+                        return;
+                    }
+
+                    var aHierarchy = this._buildHierarchy(aResults);
+                    oStockModel.setProperty("/stockHierarchy", aHierarchy);
+                    MessageToast.show(aResults.length + " record(s) fetched.");
+                }.bind(this),
+                error: function (oError) {
+                    BusyIndicator.hide();
+                    var sMsg = "Failed to fetch stock data.";
+                    try {
+                        var oParsed = JSON.parse(oError.responseText);
+                        sMsg = oParsed.error.message.value || sMsg;
+                    } catch (e) {
+                        // use default message
+                    }
+                    MessageBox.error(sMsg);
+                }
+            });
+        },
+
+        /**
+         * Builds a tree hierarchy from flat OData results.
+         * Hierarchy: Material → Plant → Storage Location → Batch
+         * Each level aggregates MatlWrhsStkQtyInMatlBaseUnit.
+         */
+        _buildHierarchy: function (aResults) {
+            var mMaterials = {};
+
+            aResults.forEach(function (oItem) {
+                var sMat = oItem.Material;
+                var sPlant = oItem.Plant;
+                var sSLoc = oItem.StorageLocation;
+                var sBatch = oItem.Batch;
+                var fQty = parseFloat(oItem.MatlWrhsStkQtyInMatlBaseUnit) || 0;
+                var sUnit = oItem.MaterialBaseUnit || "";
+                var sStockType = oItem.InventoryStockType || "";
+
+                // Material level
+                if (!mMaterials[sMat]) {
+                    mMaterials[sMat] = {
+                        name: sMat,
+                        type: "Material",
+                        icon: "sap-icon://product",
+                        iconColor: "#0064d9",
+                        unit: sUnit,
+                        unrestricted: 0,
+                        inspection: 0,
+                        blocked: 0,
+                        reserved: 0,
+                        onOrder: 0,
+                        details: { consignment: 0, project: 0, salesOrder: 0, transitPlant: 0, transitSloc: 0, expectedPO: 0, expectedProd: 0 },
+                        plants: {},
+                        nodes: []
+                    };
+                }
+                var oMat = mMaterials[sMat];
+
+                // Plant level
+                if (!oMat.plants[sPlant]) {
+                    oMat.plants[sPlant] = {
+                        name: sPlant,
+                        type: "Plant",
+                        icon: "sap-icon://factory",
+                        iconColor: "#333",
+                        unit: sUnit,
+                        unrestricted: 0,
+                        inspection: 0,
+                        blocked: 0,
+                        reserved: 0,
+                        onOrder: 0,
+                        details: { consignment: 0, project: 0, salesOrder: 0, transitPlant: 0, transitSloc: 0, expectedPO: 0, expectedProd: 0 },
+                        slocs: {},
+                        nodes: []
+                    };
+                }
+                var oPlant = oMat.plants[sPlant];
+
+                // Storage Location level
+                var sSLocKey = sSLoc || "(No SLoc)";
+                if (!oPlant.slocs[sSLocKey]) {
+                    oPlant.slocs[sSLocKey] = {
+                        name: sSLocKey,
+                        type: "SLoc",
+                        icon: "sap-icon://database",
+                        iconColor: "#666",
+                        unit: sUnit,
+                        unrestricted: 0,
+                        inspection: 0,
+                        blocked: 0,
+                        reserved: 0,
+                        onOrder: 0,
+                        details: { consignment: 0, project: 0, salesOrder: 0, transitPlant: 0, transitSloc: 0, expectedPO: 0, expectedProd: 0 },
+                        batches: {},
+                        nodes: []
+                    };
+                }
+                var oSLoc = oPlant.slocs[sSLocKey];
+
+                // Classify quantity by stock type
+                // InventoryStockType: 01 = Unrestricted, 02 = Quality Inspection, 03 = Blocked
+                var sQtyField = "unrestricted";
+                if (sStockType === "02") {
+                    sQtyField = "inspection";
+                } else if (sStockType === "03") {
+                    sQtyField = "blocked";
+                }
+
+                // Batch level (leaf node)
+                if (sBatch) {
+                    if (!oSLoc.batches[sBatch]) {
+                        oSLoc.batches[sBatch] = {
+                            name: sBatch,
+                            type: "Batch",
+                            icon: "sap-icon://business-objects-experience",
+                            iconColor: "#e9730c",
+                            unit: sUnit,
+                            unrestricted: 0,
+                            inspection: 0,
+                            blocked: 0,
+                            reserved: 0,
+                            onOrder: 0,
+                            details: { consignment: 0, project: 0, salesOrder: 0, transitPlant: 0, transitSloc: 0, expectedPO: 0, expectedProd: 0 }
+                        };
+                    }
+                    oSLoc.batches[sBatch][sQtyField] += fQty;
+                }
+
+                // Aggregate up the hierarchy
+                oSLoc[sQtyField] += fQty;
+                oPlant[sQtyField] += fQty;
+                oMat[sQtyField] += fQty;
+
+                // Special stock classification
+                var sSpecialType = oItem.InventorySpecialStockType || "";
+                if (sSpecialType === "K") { // Consignment
+                    oSLoc.details.consignment += fQty;
+                    oPlant.details.consignment += fQty;
+                    oMat.details.consignment += fQty;
+                } else if (sSpecialType === "Q") { // Project
+                    oSLoc.details.project += fQty;
+                    oPlant.details.project += fQty;
+                    oMat.details.project += fQty;
+                } else if (sSpecialType === "E") { // Sales Order
+                    oSLoc.details.salesOrder += fQty;
+                    oPlant.details.salesOrder += fQty;
+                    oMat.details.salesOrder += fQty;
+                }
+            });
+
+            // Convert maps to arrays (tree nodes)
+            var aHierarchy = [];
+            Object.keys(mMaterials).forEach(function (sMat) {
+                var oMat = mMaterials[sMat];
+                Object.keys(oMat.plants).forEach(function (sPlant) {
+                    var oPlant = oMat.plants[sPlant];
+                    Object.keys(oPlant.slocs).forEach(function (sSLoc) {
+                        var oSLoc = oPlant.slocs[sSLoc];
+                        // Add batch nodes
+                        Object.keys(oSLoc.batches).forEach(function (sBatch) {
+                            var oBatch = oSLoc.batches[sBatch];
+                            oBatch.unrestricted = this._formatQty(oBatch.unrestricted, oBatch.unit);
+                            oBatch.inspection = this._formatQty(oBatch.inspection, oBatch.unit);
+                            oBatch.blocked = this._formatQty(oBatch.blocked, oBatch.unit);
+                            oBatch.reserved = this._formatQty(oBatch.reserved, oBatch.unit);
+                            oBatch.onOrder = this._formatQty(oBatch.onOrder, oBatch.unit);
+                            oSLoc.nodes.push(oBatch);
+                        }.bind(this));
+                        delete oSLoc.batches;
+
+                        oSLoc.unrestricted = this._formatQty(oSLoc.unrestricted, oSLoc.unit);
+                        oSLoc.inspection = this._formatQty(oSLoc.inspection, oSLoc.unit);
+                        oSLoc.blocked = this._formatQty(oSLoc.blocked, oSLoc.unit);
+                        oSLoc.reserved = this._formatQty(oSLoc.reserved, oSLoc.unit);
+                        oSLoc.onOrder = this._formatQty(oSLoc.onOrder, oSLoc.unit);
+                        oPlant.nodes.push(oSLoc);
+                    }.bind(this));
+                    delete oPlant.slocs;
+
+                    oPlant.unrestricted = this._formatQty(oPlant.unrestricted, oPlant.unit);
+                    oPlant.inspection = this._formatQty(oPlant.inspection, oPlant.unit);
+                    oPlant.blocked = this._formatQty(oPlant.blocked, oPlant.unit);
+                    oPlant.reserved = this._formatQty(oPlant.reserved, oPlant.unit);
+                    oPlant.onOrder = this._formatQty(oPlant.onOrder, oPlant.unit);
+                    oMat.nodes.push(oPlant);
+                }.bind(this));
+                delete oMat.plants;
+
+                oMat.unrestricted = this._formatQty(oMat.unrestricted, oMat.unit);
+                oMat.inspection = this._formatQty(oMat.inspection, oMat.unit);
+                oMat.blocked = this._formatQty(oMat.blocked, oMat.unit);
+                oMat.reserved = this._formatQty(oMat.reserved, oMat.unit);
+                oMat.onOrder = this._formatQty(oMat.onOrder, oMat.unit);
+                aHierarchy.push(oMat);
+            }.bind(this));
+
+            return aHierarchy;
+        },
+
+        /**
+         * Formats a numeric quantity with unit for display.
+         * e.g. 1008.000 KG → "1,008 KG"
+         */
+        _formatQty: function (fValue, sUnit) {
+            if (!fValue || fValue === 0) {
+                return "0";
+            }
+            var sFormatted = Math.round(fValue).toLocaleString();
+            return sUnit ? sFormatted + " " + sUnit : sFormatted;
         },
 
         // --- Value Help Logic ---
@@ -109,27 +350,104 @@ sap.ui.define([
         },
 
         onValueHelpMaterial: function () {
-            this._openValueHelp("material", "Value Help: Material", [
-                { key: "RM-100", text: "Steel Sheet (Raw)" },
-                { key: "RM-200", text: "Aluminum Block" },
-                { key: "FG-001", text: "Finished Engine Component" }
-            ]);
+            var oODataModel = this.getView().getModel();
+            var that = this;
+
+            BusyIndicator.show(0);
+            oODataModel.read("/A_MaterialStock", {
+                urlParameters: {
+                    "$select": "Material,MaterialBaseUnit"
+                },
+                success: function (oData) {
+                    BusyIndicator.hide();
+                    var aItems = (oData.results || []).map(function (o) {
+                        return { key: o.Material, text: o.MaterialBaseUnit || "" };
+                    });
+                    that._openValueHelp("material", "Value Help: Material", aItems);
+                },
+                error: function () {
+                    BusyIndicator.hide();
+                    MessageToast.show("Failed to load materials.");
+                }
+            });
         },
 
         onValueHelpPlant: function () {
-            this._openValueHelp("plant", "Value Help: Plant", [
-                { key: "1000", text: "Hamburg Factory" },
-                { key: "1100", text: "Berlin Distribution" },
-                { key: "2000", text: "New York Assembly" }
-            ]);
+            var oODataModel = this.getView().getModel();
+            var oStockModel = this.getView().getModel("stock");
+            var sMaterial = oStockModel.getProperty("/filters/material");
+            var that = this;
+
+            var aFilters = [];
+            if (sMaterial) {
+                aFilters.push(new Filter("Material", FilterOperator.EQ, sMaterial));
+            }
+
+            BusyIndicator.show(0);
+            oODataModel.read("/A_MatlStkInAcctMod", {
+                filters: aFilters,
+                urlParameters: {
+                    "$select": "Plant"
+                },
+                success: function (oData) {
+                    BusyIndicator.hide();
+                    // Deduplicate plants
+                    var mSeen = {};
+                    var aItems = [];
+                    (oData.results || []).forEach(function (o) {
+                        if (!mSeen[o.Plant]) {
+                            mSeen[o.Plant] = true;
+                            aItems.push({ key: o.Plant, text: o.Plant });
+                        }
+                    });
+                    that._openValueHelp("plant", "Value Help: Plant", aItems);
+                },
+                error: function () {
+                    BusyIndicator.hide();
+                    MessageToast.show("Failed to load plants.");
+                }
+            });
         },
 
         onValueHelpSLoc: function () {
-            this._openValueHelp("storageLocation", "Value Help: Storage Location", [
-                { key: "0001", text: "Raw Materials Storage" },
-                { key: "0002", text: "Semi-Finished Goods" },
-                { key: "0003", text: "Quality Assurance" }
-            ]);
+            var oODataModel = this.getView().getModel();
+            var oStockModel = this.getView().getModel("stock");
+            var sMaterial = oStockModel.getProperty("/filters/material");
+            var sPlant = oStockModel.getProperty("/filters/plant");
+            var that = this;
+
+            var aFilters = [];
+            if (sMaterial) {
+                aFilters.push(new Filter("Material", FilterOperator.EQ, sMaterial));
+            }
+            if (sPlant) {
+                aFilters.push(new Filter("Plant", FilterOperator.EQ, sPlant));
+            }
+
+            BusyIndicator.show(0);
+            oODataModel.read("/A_MatlStkInAcctMod", {
+                filters: aFilters,
+                urlParameters: {
+                    "$select": "StorageLocation"
+                },
+                success: function (oData) {
+                    BusyIndicator.hide();
+                    // Deduplicate storage locations
+                    var mSeen = {};
+                    var aItems = [];
+                    (oData.results || []).forEach(function (o) {
+                        if (o.StorageLocation && !mSeen[o.StorageLocation]) {
+                            mSeen[o.StorageLocation] = true;
+                            aItems.push({ key: o.StorageLocation, text: o.StorageLocation });
+                        }
+                    });
+                    that._openValueHelp("storageLocation", "Value Help: Storage Location", aItems);
+                },
+                error: function () {
+                    BusyIndicator.hide();
+                    MessageToast.show("Failed to load storage locations.");
+                }
+            });
         },
 
         onValueHelpSearch: function (oEvent) {
@@ -158,84 +476,6 @@ sap.ui.define([
 
         onValueHelpCancel: function () {
             // Nothing to do
-        },
-
-        // --- Mock Data Generator ---
-
-        _loadMockData: function () {
-            var oModel = this.getView().getModel("stock");
-            var sMatInput = oModel.getProperty("/filters/material") || "RM-100";
-            var sPlInput = oModel.getProperty("/filters/plant");
-            var bIsRM100 = sMatInput.indexOf("RM-100") > -1;
-
-            var aMockData = [
-                {
-                    name: sMatInput + (bIsRM100 ? " (Steel Sheet)" : " (Material)"),
-                    type: "Material", icon: "sap-icon://product", iconColor: "#0064d9",
-                    unrestricted: "12,500", inspection: "400", blocked: "50", reserved: "2,000", onOrder: "5,000",
-                    details: { consignment: "1,000", project: "500", salesOrder: "200", transitPlant: "1,500", transitSloc: "0", expectedPO: "5,000", expectedProd: "0" },
-                    nodes: [
-                        {
-                            name: sPlInput || "1000 (Hamburg Factory)",
-                            type: "Plant", icon: "sap-icon://factory", iconColor: "#333",
-                            unrestricted: "8,500", inspection: "250", blocked: "50", reserved: "1,500", onOrder: "3,000",
-                            details: { consignment: "600", project: "300", salesOrder: "100", transitPlant: "0", transitSloc: "200", expectedPO: "3,000", expectedProd: "0" },
-                            nodes: [
-                                {
-                                    name: "0001 (Raw Materials Storage)",
-                                    type: "SLoc", icon: "sap-icon://database", iconColor: "#666",
-                                    unrestricted: "5,000", inspection: "0", blocked: "0", reserved: "1,000", onOrder: "2,000",
-                                    details: { consignment: "600", project: "0", salesOrder: "0", transitPlant: "0", transitSloc: "0", expectedPO: "2,000", expectedProd: "0" },
-                                    nodes: [
-                                        {
-                                            name: "B-00X1 (Batch Standard)",
-                                            type: "Batch", icon: "sap-icon://business-objects-experience", iconColor: "#e9730c",
-                                            unrestricted: "3,000", inspection: "0", blocked: "0", reserved: "1,000", onOrder: "0",
-                                            details: { consignment: "0", project: "0", salesOrder: "0", transitPlant: "0", transitSloc: "0", expectedPO: "0", expectedProd: "0" }
-                                        },
-                                        {
-                                            name: "B-00X2 (Batch Premium)",
-                                            type: "Batch", icon: "sap-icon://business-objects-experience", iconColor: "#e9730c",
-                                            unrestricted: "2,000", inspection: "0", blocked: "0", reserved: "0", onOrder: "0",
-                                            details: { consignment: "600", project: "0", salesOrder: "0", transitPlant: "0", transitSloc: "0", expectedPO: "0", expectedProd: "0" }
-                                        }
-                                    ]
-                                },
-                                {
-                                    name: "0003 (Quality Assurance)",
-                                    type: "SLoc", icon: "sap-icon://database", iconColor: "#666",
-                                    unrestricted: "0", inspection: "250", blocked: "50", reserved: "0", onOrder: "0",
-                                    details: { consignment: "0", project: "0", salesOrder: "0", transitPlant: "0", transitSloc: "200", expectedPO: "0", expectedProd: "0" },
-                                    nodes: [
-                                        {
-                                            name: "B-00X3 (Held Batch)",
-                                            type: "Batch", icon: "sap-icon://business-objects-experience", iconColor: "#e9730c",
-                                            unrestricted: "0", inspection: "250", blocked: "50", reserved: "0", onOrder: "0",
-                                            details: { consignment: "0", project: "0", salesOrder: "0", transitPlant: "0", transitSloc: "0", expectedPO: "0", expectedProd: "0" }
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            name: "1100 (Berlin Distribution)",
-                            type: "Plant", icon: "sap-icon://factory", iconColor: "#333",
-                            unrestricted: "4,000", inspection: "150", blocked: "0", reserved: "500", onOrder: "2,000",
-                            details: { consignment: "400", project: "200", salesOrder: "100", transitPlant: "1,500", transitSloc: "0", expectedPO: "2,000", expectedProd: "0" },
-                            nodes: [
-                                {
-                                    name: "0001 (Main Warehouse)",
-                                    type: "SLoc", icon: "sap-icon://database", iconColor: "#666",
-                                    unrestricted: "4,000", inspection: "150", blocked: "0", reserved: "500", onOrder: "2,000",
-                                    details: { consignment: "400", project: "200", salesOrder: "100", transitPlant: "0", transitSloc: "0", expectedPO: "2,000", expectedProd: "0" }
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ];
-
-            oModel.setProperty("/stockHierarchy", aMockData);
         }
 
     });

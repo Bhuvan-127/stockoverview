@@ -8,25 +8,14 @@
 
     <Page
         id="page"
-        title="Stock Overview">
+        title="Stock Overview"
+        enableScrolling="true">
 
         <content>
 
             <!-- Header Toolbar -->
 
-            <Toolbar class="sapUiSmallMarginTop sapUiSmallMarginBottom">
-                <Title
-                    text="Transaction MMBE Simulator"
-                    level="H3" />
-
-                <ToolbarSpacer />
-
-                <Button text="Variant" />
-
-                <Button
-                    text="Clear"
-                    press=".onClear" />
-            </Toolbar>
+            
 
             <!-- Filter Area -->
 
@@ -36,14 +25,11 @@
 
                 <content>
 
-                    <HBox
-                        justifyContent="SpaceBetween"
-                        alignItems="End"
-                        width="100%">
+                    <VBox width="100%">
 
-                        <HBox>
+                        <HBox wrap="Wrap" class="sapUiSmallMarginBottom" alignItems="End">
 
-                            <VBox class="sapUiSmallMarginEnd">
+                            <VBox class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
                                 <Label
                                     text="Material"
                                     required="true" />
@@ -57,7 +43,7 @@
                                     valueHelpRequest=".onValueHelpMaterial" />
                             </VBox>
 
-                            <VBox class="sapUiSmallMarginEnd">
+                            <VBox class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
                                 <Label text="Plant" />
 
                                 <Input
@@ -67,7 +53,7 @@
                                     valueHelpRequest=".onValueHelpPlant" />
                             </VBox>
 
-                            <VBox>
+                            <VBox class="sapUiSmallMarginBottom">
                                 <Label text="Storage Location" />
 
                                 <Input
@@ -79,13 +65,24 @@
 
                         </HBox>
 
-                        <Button
-                            text="Execute"
-                            type="Emphasized"
-                            class="sapUiSmallMarginEnd"
-                            press=".onExecute" />
+                        <HBox wrap="Wrap" class="sapUiSmallMarginBottom" justifyContent="Start" width="100%">
 
-                    </HBox>
+                            <Button
+                                text="Execute"
+                                type="Emphasized"
+                                class="sapUiSmallMarginEnd"
+                                press=".onExecute" />
+
+                            <Button
+                                text="Clear"
+                                type="Emphasized"
+                                class="sapUiSmallMarginEnd"
+                                press=".onClear"
+                            />
+
+                        </HBox>
+
+                    </VBox>
 
                 </content>
 
@@ -170,18 +167,18 @@
 
             <!-- Bottom Tabs -->
 
-            <IconTabBar class="sapUiResponsiveMargin">
+            <!-- <IconTabBar class="sapUiResponsiveMargin">
 
                 <items>
 
                     <IconTabFilter
                         text="Special Stock &amp; Consignment">
 
-                        <HBox class="sapUiMediumMarginTop">
+                        <HBox class="sapUiMediumMarginTop" wrap="Wrap">
 
                             <GenericTile
                                 class="sapUiSmallMarginEnd"
-                                header="Vendor Consignment">
+                                header="Customer Consignment">
                                 <TileContent>
                                     <NumericContent value="{stock>/selectedDetails/consignment}" valueColor="Neutral" />
                                 </TileContent>
@@ -209,7 +206,7 @@
                     <IconTabFilter
                         text="Transit / Transfer">
 
-                        <HBox class="sapUiMediumMarginTop">
+                        <HBox class="sapUiMediumMarginTop" wrap="Wrap">
 
                             <GenericTile
                                 class="sapUiSmallMarginEnd"
@@ -233,7 +230,7 @@
                     <IconTabFilter
                         text="Expected Receipts / Deliveries">
 
-                        <HBox class="sapUiMediumMarginTop">
+                        <HBox class="sapUiMediumMarginTop" wrap="Wrap">
 
                             <GenericTile
                                 class="sapUiSmallMarginEnd"
@@ -256,7 +253,7 @@
 
                 </items>
 
-            </IconTabBar>
+            </IconTabBar> -->
 
         </content>
 

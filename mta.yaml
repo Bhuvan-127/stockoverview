@@ -1,0 +1,76 @@
+_schema-version: "3.2"
+ID: stockoverview-approuter-only
+version: 0.0.1
+modules:
+- name: stockoverview-approuter
+  type: approuter.nodejs
+  path: approuter
+  requires:
+  - name: stockoverview-xsuaa
+  - name: stockoverview-destination
+  - name: stockoverview-connectivity
+  - name: stockoverview-html5-repo-rt
+  parameters:
+    disk-quota: 256M
+    memory: 256M
+
+- name: stockoverview-ui_deployer
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: stockoverview-html5-repo-host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - stockoverview.zip
+      name: stockoverview-ui
+      target-path: resources/
+
+- name: stockoverview-ui
+  type: html5
+  path: .
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build
+    supported-platforms: []
+
+resources:
+- name: stockoverview-xsuaa
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: xsuaa
+    service-plan: application
+    path: ./xs-security.json
+    config:
+      xsappname: stockoverview-${space}
+      tenant-mode: dedicated
+
+- name: stockoverview-destination
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: destination
+    service-plan: lite
+
+- name: stockoverview-connectivity
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: connectivity
+    service-plan: lite
+
+- name: stockoverview-html5-repo-host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-host
+
+- name: stockoverview-html5-repo-rt
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-runtime

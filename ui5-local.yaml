@@ -29,3 +29,6 @@ server:
       afterMiddleware: compression
       configuration:
         ignoreCertErrors: true # If set to true, certificate errors will be ignored. E.g. self-signed certificates will be accepted
+        backend:
+          - path: /sap
+            url: https://org-build-stefbuildjs-build-stockoverview-approuter.cfapps.us10-001.hana.ondemand.com
